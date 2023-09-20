@@ -153,7 +153,8 @@ def get_identity():
 
     response = {
         'status': 'success',
-        'message': f"Found identity: {results['identity']}",
+        'message': "Found identities",
+        'identity': results['identity'],
         'details': {
                     "invalid_urls": invalid_urls,
                     "one_face_found": results['one_face_found'],

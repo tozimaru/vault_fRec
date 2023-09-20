@@ -41,10 +41,10 @@ def add_member_locally(urls, images, member_id, face_app, SAVEDIR='./storage/reg
 
         if len(outputs) == 1:
             os.makedirs(outdir, exist_ok=True)            
-            image_outpath = os.path.join(outdir, str(i) + '.jpg')
+            #image_outpath = os.path.join(outdir, str(i) + '.jpg')
             npy_outpath = os.path.join(outdir, str(i) + '.npy')
             np.save(npy_outpath, outputs[0]['embedding'])
-            cv2.imwrite(image_outpath, image)
+            #cv2.imwrite(image_outpath, image)
             one_face_found.append(url)
 
             global_target_embeddings.append(outputs[0]['embedding'])

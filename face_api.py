@@ -160,7 +160,7 @@ def get_identity():
                 }
     return jsonify(response), 200
         
-@app.route('/get_registered_users', methods=['POST'])
+@app.route('/get_registered_users', methods=['GET'])
 def get_registered_users():
     data = {'num_users': len(set(global_target_ids)), 'registered_users': list(set(global_target_ids))}
     response = {

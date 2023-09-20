@@ -126,7 +126,7 @@ face_app.prepare(ctx_id=0, det_size=(640, 640))
 
 app = Flask(__name__)
 
-#CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 @app.route('/')
 def index():
@@ -136,7 +136,9 @@ def index():
 def get_identity():
     data = request.json
     urls = data['urls']
-
+    match_type = data['match_type']
+    
+    threshold = 0.70 if match_type == 'strict' else 0.55
     #try to download images
     images, valid_urls, invalid_urls = download_images(urls)
 
@@ -147,7 +149,7 @@ def get_identity():
         }
         return jsonify(response), 400
     
-    results = search_cosine(valid_urls, images, face_app)
+    results = search_cosine(valid_urls, images, face_app, threshold=threshold)
 
     response = {
         'status': 'success',

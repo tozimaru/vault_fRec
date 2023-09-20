@@ -15,6 +15,8 @@ Face Recognition API for Vault. You are able to register faces, search for ident
 - **Method**: `POST`
 - **Request Body**:
   - `urls`: List of image URLs to be processed.
+  - `match_type`: Choose one of `default` or `strict`. This changes the **threshold** when matching faces.
+  
 - **Response**:
   - `200 OK` if identity found.
     - Returns a JSON object with `status`, `message`, and `details` about the processed images.

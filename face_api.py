@@ -78,6 +78,7 @@ def search_cosine(urls, images, face_app, threshold=0.55, DBDIR='./storage/regis
         no_faces = []
         multiple_faces = []
         print(f'looking up from {len(global_target_embeddings)} embeddings.')
+        logger.info(f"'looking up from {len(global_target_embeddings)} embeddings.")
         for i, image in enumerate(images):
             try:
                 outputs = face_app.get(image)
@@ -132,7 +133,8 @@ def download_images(urls):
             print(f"ERROR: Cannot download image from {url}. Reason: {error}")
             logger.error(f"ERROR: Cannot download image from {url}. Reason: {error}")
             continue
-            
+        
+    logger.info("Images downloaded successfully")
     return images, valid_urls, invalid_urls
 
 def cosine_similarity(a, b):
@@ -156,7 +158,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 @app.route('/')
 def index():
     try:
-        logger.info("INdex accessed")
+        logger.info("Index accessed")
         return jsonify({'message': 'Vault Face API.'}), 200
     except Exception as e:
         logger.exception(f"Failed at index: {e}")

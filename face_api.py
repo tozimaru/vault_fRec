@@ -22,10 +22,13 @@ def load_embeddings(DBDIR='./storage/registered/'):
         for member in all_members:
             npys = glob.glob(os.path.join(DBDIR, member, '*.npy'))
             for npy in npys:
-                embedding = np.load(npy)
-                global_target_embeddings.append(embedding)
-                global_target_ids.append(member)
-
+                try:
+                    embedding = np.load(npy)
+                    global_target_embeddings.append(embedding)
+                    global_target_ids.append(member)
+                except Exception as inner_e:
+                    logger.exception(f"Failed to load embedding from {npy}: {inner_e}")
+                    
         global_target_embeddings = global_target_embeddings 
         global_target_ids = global_target_ids 
         print('Loaded embeddings.')
@@ -41,25 +44,28 @@ def add_member_locally(urls, images, member_id, face_app, SAVEDIR='./storage/reg
         no_faces = []
         multiple_faces = []
         for i, image in enumerate(images):
-            outputs = face_app.get(image)
-            url = urls[i]
+            try:
+                outputs = face_app.get(image)
+                url = urls[i]
 
-            if len(outputs) == 1:
-                os.makedirs(outdir, exist_ok=True)            
-                #image_outpath = os.path.join(outdir, str(i) + '.jpg')
-                npy_outpath = os.path.join(outdir, str(i) + '.npy')
-                np.save(npy_outpath, outputs[0]['embedding'])
-                #cv2.imwrite(image_outpath, image)
-                one_face_found.append(url)
+                if len(outputs) == 1:
+                    os.makedirs(outdir, exist_ok=True)            
+                    #image_outpath = os.path.join(outdir, str(i) + '.jpg')
+                    npy_outpath = os.path.join(outdir, str(i) + '.npy')
+                    np.save(npy_outpath, outputs[0]['embedding'])
+                    #cv2.imwrite(image_outpath, image)
+                    one_face_found.append(url)
 
-                global_target_embeddings.append(outputs[0]['embedding'])
-                global_target_ids.append(member_id)
+                    global_target_embeddings.append(outputs[0]['embedding'])
+                    global_target_ids.append(member_id)
 
-            #adding these just so the error states are clearer
-            elif len(outputs) > 1:
-                multiple_faces.append(url)
-            else:
-                no_faces.append(url)
+                #adding these just so the error states are clearer
+                elif len(outputs) > 1:
+                    multiple_faces.append(url)
+                else:
+                    no_faces.append(url)
+            except Exception as inner_e:
+                logger.exception(f"Exception at image index {i} for URL {urls[i]}: {inner_e}")
 
         logger.info(f"Member registration success: {member_id}")
         return one_face_found, no_faces, multiple_faces
@@ -73,25 +79,28 @@ def search_cosine(urls, images, face_app, threshold=0.55, DBDIR='./storage/regis
         multiple_faces = []
         print(f'looking up from {len(global_target_embeddings)} embeddings.')
         for i, image in enumerate(images):
-            outputs = face_app.get(image)
-            url = urls[i]
-            if len(outputs) == 1:
-                one_face.append(url)
-                for k, target_embedding in enumerate(global_target_embeddings):
-                    distance = cosine_similarity(outputs[0]['embedding'], target_embedding)
-                    if distance > threshold:
-                        logger.info(f"Found identity: {global_target_ids[k]} with distance {distance}")
-                        print('Found identity: ', global_target_ids[k], distance)
-                        return {'identity': global_target_ids[k], 
-                                'one_face_found': one_face,
-                                'no_face_found': no_faces,
-                                'multiple_faces_found': multiple_faces}
+            try:
+                outputs = face_app.get(image)
+                url = urls[i]
+                if len(outputs) == 1:
+                    one_face.append(url)
+                    for k, target_embedding in enumerate(global_target_embeddings):
+                        distance = cosine_similarity(outputs[0]['embedding'], target_embedding)
+                        if distance > threshold:
+                            logger.info(f"Found identity: {global_target_ids[k]} with distance {distance}")
+                            print('Found identity: ', global_target_ids[k], distance)
+                            return {'identity': global_target_ids[k], 
+                                    'one_face_found': one_face,
+                                    'no_face_found': no_faces,
+                                    'multiple_faces_found': multiple_faces}
 
-            if len(outputs) > 1:
-                multiple_faces.append(url)
-            
-            if len(outputs) == 0:
-                no_faces.append(url)
+                if len(outputs) > 1:
+                    multiple_faces.append(url)
+                
+                if len(outputs) == 0:
+                    no_faces.append(url)
+            except Exception as inner_e:
+                logger.exception(f"Exception at image index {i} for URL {urls[i]}: {inner_e}")
                 
         logger.info(f"Search complete with threshold {threshold}")
         return {'identity': None, 
@@ -197,7 +206,7 @@ def get_registered_users():
             "message": data
         }
         logger.info("Successfully fetched the list of registered users")
-        return jsonify(response), 400
+        return jsonify(response), 200
     except Exception as e:
         logger.exception(f"Failed to get list of registered users: {e}")
 
@@ -214,9 +223,6 @@ def register_user():
                 "message": "Member already exists."
             }
             return jsonify(response), 400
-        
-        #try to download images
-        images = download_images(urls)
 
         #try to download images
         images, valid_urls, invalid_urls = download_images(urls)

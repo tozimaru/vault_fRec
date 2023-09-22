@@ -1,4 +1,3 @@
-import json
 import os
 import glob
 from PIL import Image
@@ -6,10 +5,34 @@ from io import BytesIO
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import requests
-import cv2
 import numpy as np
+from functools import wraps
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+
 import insightface
 from insightface.app import FaceAnalysis
+
+SECRET_KEY = os.environ.get('VAULT_SECRET_KEY')
+
+def require_secret_key(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if request.headers.get('vault-secret-key') != SECRET_KEY:
+            print('Secret key fail')
+            return jsonify({'message': 'Forbidden: Invalid Secret Key'}), 403
+        return f(*args, **kwargs)
+    return wrapper
+
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB, adjust as needed
+
+def check_size(url):
+    response = requests.head(url)
+    file_size = int(response.headers.get('Content-Length', 0))
+    if file_size > MAX_FILE_SIZE:
+        return False, f"File size ({file_size} bytes) exceeds the limit of {MAX_FILE_SIZE} bytes"
+    return True
+
 
 def load_embeddings(DBDIR='./storage/registered/'):
     global global_target_embeddings, global_target_ids
@@ -95,6 +118,9 @@ def download_images(urls):
     invalid_urls = []
     for url in urls:
         try:
+            if not check_size(url):
+                #log this
+                continue
             response = requests.get(url, timeout=10)
             if 'image' not in response.headers.get('content-type', ''):
                 print(f"ERROR: URL {url} does not appear to be an image.")
@@ -126,13 +152,23 @@ face_app.prepare(ctx_id=0, det_size=(640, 640))
 
 app = Flask(__name__)
 
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["1000 per hour"]
+)
+
 CORS(app, resources={r"/*": {"origins": "*"}})
 
+
 @app.route('/')
+@require_secret_key
 def index():
     return jsonify({'message': 'Vault Face API.'}), 200
 
+
 @app.route('/get_identity', methods=['POST'])
+@require_secret_key
 def get_identity():
     data = request.json
     urls = data['urls']
@@ -163,16 +199,20 @@ def get_identity():
                 }
     return jsonify(response), 200
         
+
 @app.route('/get_registered_users', methods=['GET'])
+@require_secret_key
 def get_registered_users():
     data = {'num_users': len(set(global_target_ids)), 'registered_users': list(set(global_target_ids))}
     response = {
         "status": "success",
         "message": data
     }
-    return jsonify(response), 400
+    return jsonify(response), 200
+
 
 @app.route('/register_user', methods=['POST'])
+@require_secret_key
 def register_user():
     data = request.json
     urls = data['urls']
